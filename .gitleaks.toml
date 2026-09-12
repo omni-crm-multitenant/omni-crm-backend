@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated test fixtures and documentation contain synthetic values only."
+paths = [
+  '''tests/fixtures/''',
+  '''\.env\.example''',
+]

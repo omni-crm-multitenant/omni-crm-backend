@@ -1,0 +1,1 @@
+{"fixture_kind":"messenger_inbound","meta_graph_api_version":"v23.0","payload":{"sender":{"id":"synthetic-messenger-user"},"timestamp":1700000000000,"message":{"mid":"mid.synthetic-2","text":"Synthetic message"}}}

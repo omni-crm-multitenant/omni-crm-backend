@@ -1,0 +1,1 @@
+{"fixture_kind":"whatsapp_inbound","meta_graph_api_version":"v23.0","payload":{"messages":[{"from":"15550000000","id":"wamid.synthetic-1","timestamp":"1700000000","text":{"body":"Synthetic message"}}]}}
