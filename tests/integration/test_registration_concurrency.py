@@ -6,7 +6,6 @@ import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.api.dependencies import get_session
-from app.db.base import Base
 from app.main import create_app
 from app.models.identity import Membership, Tenant, User
 from app.core.security import hash_password
@@ -22,10 +21,6 @@ async def test_simultaneous_registration_accepts_exactly_one_request() -> None:
     assert DATABASE_URL is not None
     engine = create_async_engine(DATABASE_URL)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.drop_all)
-        await connection.run_sync(Base.metadata.create_all)
-
     async def override_session():
         async with factory() as session:
             yield session
@@ -60,9 +55,6 @@ async def test_concurrent_refresh_consumes_token_once() -> None:
     assert DATABASE_URL is not None
     engine = create_async_engine(DATABASE_URL)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.drop_all)
-        await connection.run_sync(Base.metadata.create_all)
     try:
         async with factory.begin() as session:
             user = User(name="Ana", email="refresh@example.com", password_hash=hash_password("strong-password"))
