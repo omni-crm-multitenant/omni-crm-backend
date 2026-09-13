@@ -41,7 +41,18 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install .[test]
-      - run: alembic upgrade head
+      - name: Apply Alembic migrations
+        shell: bash
+        run: |
+          set +e
+          output="$(alembic upgrade head 2>&1)"
+          status=$?
+          printf '%s\n' "$output"
+          if [ "$status" -ne 0 ]; then
+            summary="$(printf '%s' "$output" | tr '\n' ' ' | cut -c1-2000)"
+            echo "::error title=Alembic migration failed::$summary"
+            exit "$status"
+          fi
         env:
           DATABASE_URL: postgresql+asyncpg://omni:omni@localhost:5432/omni
       - name: Verify Alembic has no model drift
@@ -106,7 +117,18 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install .[test]
-      - run: alembic upgrade head
+      - name: Apply Alembic migrations
+        shell: bash
+        run: |
+          set +e
+          output="$(alembic upgrade head 2>&1)"
+          status=$?
+          printf '%s\n' "$output"
+          if [ "$status" -ne 0 ]; then
+            summary="$(printf '%s' "$output" | tr '\n' ' ' | cut -c1-2000)"
+            echo "::error title=Alembic migration failed::$summary"
+            exit "$status"
+          fi
         env:
           DATABASE_URL: postgresql+asyncpg://omni:omni@localhost:5432/omni
       - run: pytest tests/integration
