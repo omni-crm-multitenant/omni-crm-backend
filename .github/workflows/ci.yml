@@ -44,7 +44,18 @@ jobs:
       - run: alembic upgrade head
         env:
           DATABASE_URL: postgresql+asyncpg://omni:omni@localhost:5432/omni
-      - run: alembic check
+      - name: Verify Alembic has no model drift
+        shell: bash
+        run: |
+          set +e
+          output="$(alembic check 2>&1)"
+          status=$?
+          printf '%s\n' "$output"
+          if [ "$status" -ne 0 ]; then
+            summary="$(printf '%s' "$output" | tr '\n' ' ' | cut -c1-500)"
+            echo "::error title=Alembic model drift::$summary"
+            exit "$status"
+          fi
         env:
           DATABASE_URL: postgresql+asyncpg://omni:omni@localhost:5432/omni
       - run: pytest
