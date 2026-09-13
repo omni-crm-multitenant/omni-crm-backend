@@ -175,8 +175,32 @@ jobs:
           load: true
           tags: omni-backend:ci
       - uses: aquasecurity/trivy-action@v0.36.0
+        continue-on-error: true
         with:
           image-ref: omni-backend:ci
+          format: json
+          output: /tmp/trivy.json
           severity: HIGH,CRITICAL
           exit-code: "1"
           ignore-unfixed: true
+      - name: Report container vulnerabilities
+        shell: bash
+        run: |
+          if [ ! -s /tmp/trivy.json ]; then
+            echo "::error title=Trivy::Trivy did not produce a report"
+            exit 1
+          fi
+          summary="$(python - <<'PY'
+          import json
+          report = json.load(open('/tmp/trivy.json'))
+          findings = []
+          for result in report.get('Results', []):
+              for vuln in result.get('Vulnerabilities') or []:
+                  findings.append(f"{vuln['VulnerabilityID']} {vuln['PkgName']} {vuln.get('InstalledVersion')} -> {vuln.get('FixedVersion', 'no fix')}")
+          print('; '.join(findings)[:2000])
+          PY
+          )"
+          if [ -n "$summary" ]; then
+            echo "::error title=Container vulnerabilities::$summary"
+            exit 1
+          fi
