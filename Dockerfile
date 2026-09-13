@@ -7,14 +7,10 @@ WORKDIR /app
 RUN addgroup --system omni && adduser --system --ingroup omni omni
 COPY requirements.lock .
 RUN python -m pip install --upgrade --no-cache-dir pip \
-    && (python -m pip uninstall --yes msgpack setuptools || true) \
-    && find /usr/local /usr/lib -type d \( -name 'msgpack*' -o -name 'setuptools*' \) -prune -exec rm -rf {} + \
-    && python -m pip install --no-cache-dir msgpack==1.2.1 setuptools==83.0.0 \
-    && python -m pip install --upgrade --no-cache-dir --requirement requirements.lock \
-    && python -c "import importlib.metadata as m; assert m.version('msgpack') == '1.2.1'; assert m.version('setuptools') == '83.0.0'"
+    && python -m pip install --upgrade --force-reinstall --no-cache-dir --requirement requirements.lock \
+    && python -m pip check
 COPY . .
 RUN chown -R omni:omni /app
 USER omni
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
