@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,8 +29,13 @@ async def create_message(
 ) -> Message:
     author_fields = author.storage_fields()
     metadata = dict(message_metadata or {})
-    metadata.update(author_fields.pop("message_metadata", {}))
-    validate_message_author_storage(author_fields["author_type"], author_fields["author_user_id"], metadata)
+    author_metadata = cast(dict[str, object], author_fields.pop("message_metadata", {}))
+    metadata.update(author_metadata)
+    validate_message_author_storage(
+        cast(str, author_fields["author_type"]),
+        cast(UUID | None, author_fields["author_user_id"]),
+        metadata,
+    )
     message = Message(
         tenant_id=tenant_id,
         conversation_id=conversation_id,

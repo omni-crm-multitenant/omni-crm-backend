@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import Integer, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.operations import TenantSettings

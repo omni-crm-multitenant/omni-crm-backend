@@ -47,9 +47,9 @@ class MessageAuthor:
     def system(cls, event_id: UUID) -> "MessageAuthor":
         return cls(AuthorOrigin.SYSTEM, source_id=event_id)
 
-    def storage_fields(self) -> dict:
+    def storage_fields(self) -> dict[str, object]:
         author_type = "user" if self.origin is AuthorOrigin.AGENT else self.origin.value
-        fields = {"author_type": author_type, "author_user_id": self.user_id}
+        fields: dict[str, object] = {"author_type": author_type, "author_user_id": self.user_id}
         if self.source_id is not None:
             fields["message_metadata"] = {
                 "author_origin": self.origin.value,

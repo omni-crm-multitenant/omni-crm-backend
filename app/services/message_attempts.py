@@ -6,7 +6,6 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.crm import Message
 from app.models.message_attempts import MessageSendAttempt
 
 

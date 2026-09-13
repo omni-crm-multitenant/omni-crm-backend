@@ -4,7 +4,7 @@ import re
 
 
 try:
-    import phonenumbers
+    import phonenumbers  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover - optional local fallback
     phonenumbers = None
 

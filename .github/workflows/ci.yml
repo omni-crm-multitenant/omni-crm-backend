@@ -41,6 +41,12 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install .[test]
+      - run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://omni:omni@localhost:5432/omni
+      - run: alembic check
+        env:
+          DATABASE_URL: postgresql+asyncpg://omni:omni@localhost:5432/omni
       - run: pytest
         env:
           DATABASE_URL: postgresql+asyncpg://omni:omni@localhost:5432/omni

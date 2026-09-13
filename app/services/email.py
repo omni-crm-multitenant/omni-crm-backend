@@ -31,6 +31,7 @@ def send_email(
         message.add_alternative(html_body, subtype="html")
 
     connected = False
+    client: smtplib.SMTP
     try:
         if config.smtp_tls_mode == "tls":
             client = smtplib.SMTP_SSL(

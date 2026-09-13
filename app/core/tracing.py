@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 import hashlib
 from functools import wraps
 from time import perf_counter

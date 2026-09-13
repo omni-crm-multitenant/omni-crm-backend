@@ -47,12 +47,12 @@ class MessageResponse(BaseModel):
     client_idempotency_key: str | None = None
     message_metadata: dict = Field(default_factory=dict, exclude=True)
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def uncertainty(self) -> bool:
         return self.status == "unknown"
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def attempt_evidence(self) -> list[dict]:
         return list(self.message_metadata.get("attempt_history", []))

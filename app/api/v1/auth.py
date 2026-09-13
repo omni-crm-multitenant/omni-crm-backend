@@ -14,7 +14,7 @@ from app.api.dependencies import CurrentIdentity, bearer_scheme, get_session, re
 from app.core.config import get_settings
 from app.core.security import hash_password, verify_password
 from app.core.tokens import InvalidToken, decode_token, issue_token
-from app.models.identity import EmailOutbox, Membership, Tenant, User
+from app.models.identity import EmailOutbox, Tenant, User
 from app.repositories.memberships import get_membership, list_memberships
 from app.services.email_verification import InvalidVerificationToken, verify_email_token
 from app.services.registration import (
@@ -324,9 +324,10 @@ async def memberships_for_login(
     except (InvalidToken, InvalidSession) as exc:
         raise HTTPException(status_code=401, detail={"code": "AUTHENTICATION_REQUIRED"}) from exc
     memberships = await list_memberships(session, user_id=claims.subject, active_only=True)
-    tenant_names = dict(
-        (await session.execute(select(Tenant.id, Tenant.name).where(Tenant.id.in_([m.tenant_id for m in memberships])))).all()
-    ) if memberships else {}
+    tenant_names: dict[UUID, str] = {
+        row[0]: row[1]
+        for row in (await session.execute(select(Tenant.id, Tenant.name).where(Tenant.id.in_([m.tenant_id for m in memberships])))).all()
+    } if memberships else {}
     return [
         MembershipChoice(
             membership_id=membership.id,

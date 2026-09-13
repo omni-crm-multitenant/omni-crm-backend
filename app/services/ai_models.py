@@ -40,9 +40,9 @@ SUPPORTED_MODELS: dict[str, frozenset[str]] = {
 
 def get_chat_model(provider: str | Any, model: str | None = None, *, api_key: str | None = None, settings: Any = None) -> ChatModel:
     if model is None:
-        profile = provider
-        provider = profile.provider
-        model = profile.model
+        profile: Any = provider
+        provider = str(profile.provider)
+        model = str(profile.model)
     if api_key is None and settings is not None:
         api_key = getattr(settings, f"{provider}_api_key", None)
     models = SUPPORTED_MODELS.get(provider)

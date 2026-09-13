@@ -1,13 +1,10 @@
-from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.core.security import hash_password
 from app.db.base import Base
-from app.models.crm import Contact, ContactIdentity, Conversation
+from app.models.crm import Contact, Conversation
 from app.models.identity import ChannelAsset, Tenant
 from app.repositories.contact_identities import upsert_contact_identity
 from app.services import asset_revalidation

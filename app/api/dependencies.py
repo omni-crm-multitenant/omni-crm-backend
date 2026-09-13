@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
@@ -88,7 +88,7 @@ async def require_tenant_context(
         tenant_id=membership.tenant_id,
         membership_id=membership.id,
         user_id=membership.user_id,
-        role=membership.role,
+        role=cast(Role, membership.role),
     )
 
 Role = Literal["administrador", "supervisor", "agente_comercial"]

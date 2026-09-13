@@ -141,7 +141,7 @@ async def custom_field_has_values(
                     "SELECT 1 FROM opportunities "
                     "WHERE tenant_id = :tenant_id AND json_type(custom_fields, :json_path) IS NOT NULL LIMIT 1"
                 )
-                parameters = {"tenant_id": str(definition.tenant_id), "json_path": f"$.{definition.name}"}
+                parameters: dict[str, object] = {"tenant_id": str(definition.tenant_id), "json_path": f"$.{definition.name}"}
             else:
                 statement = text(
                     "SELECT 1 FROM opportunities "

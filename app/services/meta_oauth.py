@@ -6,7 +6,6 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from dataclasses import dataclass
 from urllib.parse import urlencode
-from uuid import UUID
 
 import httpx
 from sqlalchemy import select

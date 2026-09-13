@@ -1,7 +1,6 @@
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.tenant_context import TenantContext

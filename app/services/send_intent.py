@@ -34,6 +34,7 @@ async def send_outbound_message(
     consent_required: bool = True,
 ) -> Message:
     """Shared automation/AI entry point; proactive sends must prove consent."""
+    conversation: Conversation | None
     if consent_required:
         conversation = await assert_proactive_send_allowed(
             session, tenant_id=tenant_id, conversation_id=conversation_id, purpose=purpose,
@@ -44,6 +45,7 @@ async def send_outbound_message(
         ))
         if conversation is None:
             raise LookupError("CONVERSATION_NOT_FOUND")
+    assert conversation is not None
     return await create_message(
         session, tenant_id=tenant_id, conversation_id=conversation.id,
         channel_asset_id=conversation.channel_asset_id, channel=conversation.channel,

@@ -33,13 +33,13 @@ def sync_tenant_campaigns(tenant_id: str, job_id: str | None = None) -> int:
             if job_id is None:
                 total = 0
                 for asset_id in assets:
-                    total += await sync_campaigns(session, tenant_id)
+                    total += await sync_campaigns(session, UUID(tenant_id))
                     break
             else:
                 async with run_job(session, UUID(job_id)) as job:
                     total = 0
                     for asset_id in assets:
-                        total += await sync_campaigns(session, tenant_id)
+                        total += await sync_campaigns(session, UUID(tenant_id))
                         break
                     job.result = {"synced": total}
             await session.commit()

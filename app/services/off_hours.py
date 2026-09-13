@@ -39,6 +39,7 @@ async def route_inbound_message(session: AsyncSession, *, event: WebhookEvent, c
     """Persist inbound conversation effects, then gate AI/human routing on hours."""
     if event.channel_asset_id is None:
         return None
+    assert event.tenant_id is not None
     from app.models.identity import ChannelAsset
     asset = await session.scalar(select(ChannelAsset).where(
         ChannelAsset.id == event.channel_asset_id, ChannelAsset.tenant_id == event.tenant_id,

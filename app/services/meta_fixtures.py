@@ -43,8 +43,8 @@ def parse_fixture(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
         value = MessengerAdapter().parse_inbound(payload)
         return {"external_user_id": value.external_user_id, "provider_message_id": value.provider_message_id, "body_text": value.body_text, "direction": value.direction}
     if kind == "leadgen":
-        value = parse_lead_notification(payload)
-        return {"leadgen_id": value.leadgen_id, "page_id": value.page_id, "ad_id": value.ad_id, "form_id": value.form_id}
+        lead = parse_lead_notification(payload)
+        return {"leadgen_id": lead.leadgen_id, "page_id": lead.page_id, "ad_id": lead.ad_id, "form_id": lead.form_id}
     if kind == "whatsapp_status":
         status = (payload.get("statuses") or [{}])[0]
         return {"id": status.get("id"), "status": status.get("status"), "recipient_id": status.get("recipient_id")}

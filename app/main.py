@@ -92,7 +92,8 @@ def create_app() -> FastAPI:
         finally:
             elapsed_ms = (perf_counter() - started) * 1000
             route = getattr(request.scope.get("route"), "path", request.url.path)
-            record_http_request(route, locals().get("response", None).status_code if "response" in locals() else 500, elapsed_ms)
+            recorded_response = locals().get("response")
+            record_http_request(route, recorded_response.status_code if recorded_response is not None else 500, elapsed_ms)
             request_id_var.reset(request_token)
             actor_id_var.reset(actor_token)
         response.headers["X-Request-ID"] = request_id
@@ -119,7 +120,7 @@ def create_app() -> FastAPI:
         application.openapi_schema = schema
         return schema
 
-    application.openapi = custom_openapi
+    application.openapi = custom_openapi  # type: ignore[method-assign]
 
     @application.get("/health", include_in_schema=False)
     async def root_health() -> dict[str, str]:

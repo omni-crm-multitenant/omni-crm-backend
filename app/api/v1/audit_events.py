@@ -32,9 +32,14 @@ class AuditEventResponse(BaseModel):
     @classmethod
     def from_row(cls, row: AuditEvent) -> "AuditEventResponse":
         return cls(
-            id=row.id, actor_type=row.actor_type, actor_user_id=row.actor_user_id,
-            action=row.action, resource_type=row.resource_type, resource_id=row.resource_id,
-            occurred_at=row.occurred_at, metadata=sanitize_metadata(row.sanitized_metadata),
+            id=row.id,
+            actor_type=row.actor_type,
+            actor_user_id=row.actor_user_id,
+            action=row.action,
+            resource_type=row.resource_type,
+            resource_id=row.resource_id,
+            occurred_at=row.occurred_at,
+            metadata=sanitize_metadata(row.sanitized_metadata),
         )
 
 
@@ -56,13 +61,23 @@ async def list_audit_events(
     session: AsyncSession = Depends(get_session),
 ) -> AuditEventPage:
     query = select(AuditEvent).where(AuditEvent.tenant_id == context.tenant_id)
-    if actor_id: query = query.where(AuditEvent.actor_user_id == actor_id)
-    if resource_type: query = query.where(AuditEvent.resource_type == resource_type)
-    if action: query = query.where(AuditEvent.action == action)
-    if from_date: query = query.where(AuditEvent.occurred_at >= from_date)
-    if to_date: query = query.where(AuditEvent.occurred_at <= to_date)
+    if actor_id:
+        query = query.where(AuditEvent.actor_user_id == actor_id)
+    if resource_type:
+        query = query.where(AuditEvent.resource_type == resource_type)
+    if action:
+        query = query.where(AuditEvent.action == action)
+    if from_date:
+        query = query.where(AuditEvent.occurred_at >= from_date)
+    if to_date:
+        query = query.where(AuditEvent.occurred_at <= to_date)
     try:
-        page = await paginate(session, query, cursor, limit, (AuditEvent.occurred_at, AuditEvent.id))
+        page = await paginate(
+            session, query, cursor, limit, (AuditEvent.occurred_at, AuditEvent.id)
+        )
     except (InvalidCursor, ValueError) as exc:
         raise HTTPException(status_code=400, detail={"code": "INVALID_CURSOR"}) from exc
-    return AuditEventPage(items=[AuditEventResponse.from_row(row) for row in page.items], next_cursor=page.next_cursor)
+    return AuditEventPage(
+        items=[AuditEventResponse.from_row(row) for row in page.items],
+        next_cursor=page.next_cursor,
+    )

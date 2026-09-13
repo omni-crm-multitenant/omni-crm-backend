@@ -81,7 +81,7 @@ async def ingest_lead(
     session.add(Attribution(
         tenant_id=tenant_id, contact_id=resolution.contact.id,
         campaign_id=campaign_id, source="meta_lead",
-        confidence=classify_attribution(campaign_id, None, notification.ad_id),
+        confidence=classify_attribution(campaign_id, None, None),
         raw_metadata={"leadgen_id": notification.leadgen_id, "ad_id": notification.ad_id, "form_id": notification.form_id},
     ))
     await session.flush()

@@ -41,7 +41,7 @@ async def deliver_email_outbox(
             raw_token = await issue_verification_token(session, row.user_id)
             base_url = str(get_settings().auth_public_base_url).rstrip("/")
             verification_url = f"{base_url}/verify-email?token={raw_token}"
-            message = {
+            message: dict[str, str | None] = {
                 "recipient": row.recipient,
                 "subject": row.subject,
                 "text_body": f"Verifica tu cuenta: {verification_url}",

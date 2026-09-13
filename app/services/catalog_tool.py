@@ -12,8 +12,8 @@ from app.models.ai import AiProfile
 
 def _tool_decorator(function: Callable) -> Callable:
     """Small compatible tool surface; LangChain remains an optional integration."""
-    function.name = function.__name__
-    function.description = function.__doc__ or ""
+    setattr(function, "name", function.__name__)
+    setattr(function, "description", function.__doc__ or "")
     return function
 
 

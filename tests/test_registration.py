@@ -1,6 +1,6 @@
 import pytest
 from sqlalchemy import event, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.security import verify_password
 from app.db.base import Base

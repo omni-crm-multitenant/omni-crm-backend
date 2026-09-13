@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.security import hash_password
-from app.models.identity import EmailOutbox, Invitation, Membership, Tenant, User
+from app.models.identity import EmailOutbox, Invitation, Membership, User
 from app.services.registration import normalize_email
 
 

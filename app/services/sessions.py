@@ -146,6 +146,8 @@ async def rotate_refresh_token(db: AsyncSession, raw_token: str) -> SessionPair:
         if refresh is None or not hmac.compare_digest(refresh.secret_hash, _hash_secret(secret)):
             raise InvalidSession("invalid refresh token")
         auth_session = await db.get(AuthSession, refresh.session_id)
+        if auth_session is None:
+            raise InvalidSession("missing session")
         if refresh.consumed_at is not None:
             replayed = True
             now = datetime.now(UTC)
@@ -160,8 +162,7 @@ async def rotate_refresh_token(db: AsyncSession, raw_token: str) -> SessionPair:
             now = datetime.now(UTC)
             if refresh.revoked_at is not None or _as_utc(refresh.expires_at) <= now:
                 raise InvalidSession("inactive refresh token")
-            if auth_session is None:
-                raise InvalidSession("missing session")
+
             claims = TokenClaims(
                 subject=auth_session.user_id,
                 purpose="access",

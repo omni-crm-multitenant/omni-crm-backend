@@ -204,7 +204,7 @@ async def connection_callback(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"code": "INVALID_OAUTH_STATE"},
         ) from exc
-    except MetaOAuthError as exc:
+    except MetaOAuthError:
         return OAuthCallbackResponse(onboarding_status="failed", error_code="META_OAUTH_FAILED")
     return OAuthCallbackResponse(
         onboarding_status="ready",

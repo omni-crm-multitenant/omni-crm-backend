@@ -1,12 +1,10 @@
 from dataclasses import dataclass
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.core.tenant_context import TenantContext
 from app.db.base import Base
 from app.models.crm import Contact, CustomFieldDefinition
 from app.models.identity import Tenant

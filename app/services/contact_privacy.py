@@ -93,7 +93,7 @@ async def purge_erased_contacts(session: AsyncSession, *, now: datetime | None =
     for contact in rows:
         settings = await session.get(TenantSettings, contact.tenant_id)
         retention_days = int(((settings.contact_info if settings else {}) or {}).get("retention_days", 365))
-        if contact.erasure_requested_at > now - timedelta(days=retention_days):
+        if contact.erasure_requested_at is not None and contact.erasure_requested_at > now - timedelta(days=retention_days):
             continue
         await session.execute(update(Message).where(Message.tenant_id == contact.tenant_id, Message.conversation_id.in_(select(Conversation.id).where(Conversation.tenant_id == contact.tenant_id, Conversation.contact_id == contact.id))).values(body_text=None, message_metadata={}))
         await session.execute(update(GraphCheckpoint).where(GraphCheckpoint.tenant_id == contact.tenant_id, GraphCheckpoint.conversation_id.in_(select(Conversation.id).where(Conversation.tenant_id == contact.tenant_id, Conversation.contact_id == contact.id))).values(state={}))

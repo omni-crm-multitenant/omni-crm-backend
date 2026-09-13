@@ -13,7 +13,10 @@ from app.models.merge_candidates import ContactMergeCandidate
 from app.models.operations import TenantSettings
 from app.services.audit import write_audit_event
 from app.api.dependencies import require_roles
-from app.services.custom_fields import CustomFieldValidationError, validate_custom_field_payload
+from app.services.custom_fields import (
+    CustomFieldValidationError,
+    validate_custom_field_payload,
+)
 from app.services.contact_privacy import logically_erase_contact
 from app.services.jobs import create_job
 from app.services.normalization import normalize_email, normalize_phone
@@ -119,23 +122,46 @@ class ErasureResponse(BaseModel):
     erasure_requested_at: datetime
 
 
-async def _contact_or_404(session: AsyncSession, tenant_id: UUID, contact_id: UUID) -> Contact:
-    contact = await session.scalar(select(Contact).where(Contact.id == contact_id, Contact.tenant_id == tenant_id, Contact.status != "deleted", Contact.deleted_at.is_(None)))
+async def _contact_or_404(
+    session: AsyncSession, tenant_id: UUID, contact_id: UUID
+) -> Contact:
+    contact = await session.scalar(
+        select(Contact).where(
+            Contact.id == contact_id,
+            Contact.tenant_id == tenant_id,
+            Contact.status != "deleted",
+            Contact.deleted_at.is_(None),
+        )
+    )
     if contact is None:
         raise HTTPException(status_code=404, detail={"code": "CONTACT_NOT_FOUND"})
     return contact
 
 
-@router.get("/merge-candidates", response_model=list[MergeCandidateResponse], include_in_schema=False)
+@router.get(
+    "/merge-candidates",
+    response_model=list[MergeCandidateResponse],
+    include_in_schema=False,
+)
 async def list_merge_candidates_before_contact_id(
     context: TenantContext = Depends(require_tenant_context),
     session: AsyncSession = Depends(get_session),
 ) -> list[MergeCandidateResponse]:
-    rows = list((await session.scalars(select(ContactMergeCandidate).where(
-        ContactMergeCandidate.tenant_id == context.tenant_id,
-        ContactMergeCandidate.status == "pending",
-    ).order_by(ContactMergeCandidate.created_at.asc()))).all())
-    return [MergeCandidateResponse.model_validate(row, from_attributes=True) for row in rows]
+    rows = list(
+        (
+            await session.scalars(
+                select(ContactMergeCandidate)
+                .where(
+                    ContactMergeCandidate.tenant_id == context.tenant_id,
+                    ContactMergeCandidate.status == "pending",
+                )
+                .order_by(ContactMergeCandidate.created_at.asc())
+            )
+        ).all()
+    )
+    return [
+        MergeCandidateResponse.model_validate(row, from_attributes=True) for row in rows
+    ]
 
 
 @router.post("", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
@@ -145,16 +171,37 @@ async def create_contact(
     session: AsyncSession = Depends(get_session),
 ) -> ContactResponse:
     try:
-        await validate_custom_field_payload(session, tenant_id=context.tenant_id, entity_type="contact", values=payload.custom_fields, require_all=False)
+        await validate_custom_field_payload(
+            session,
+            tenant_id=context.tenant_id,
+            entity_type="contact",
+            values=payload.custom_fields,
+            require_all=False,
+        )
     except CustomFieldValidationError as exc:
-        raise HTTPException(status_code=422, detail={"code": "INVALID_CUSTOM_FIELD", "field": exc.field_name, "reason": exc.reason}) from exc
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_CUSTOM_FIELD",
+                "field": exc.field_name,
+                "reason": exc.reason,
+            },
+        ) from exc
     values = payload.model_dump()
     values["phone"] = normalize_phone(values["phone"]) if values.get("phone") else None
     values["email"] = normalize_email(values["email"]) if values.get("email") else None
     contact = Contact(tenant_id=context.tenant_id, **values)
     session.add(contact)
     await session.flush()
-    await write_audit_event(session, tenant_id=context.tenant_id, actor_type="user", actor_user_id=context.user_id, action="contact.created", resource_type="contact", resource_id=contact.id)
+    await write_audit_event(
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.created",
+        resource_type="contact",
+        resource_id=contact.id,
+    )
     return ContactResponse.model_validate(contact, from_attributes=True)
 
 
@@ -171,21 +218,41 @@ async def list_contacts(
     context: TenantContext = Depends(require_tenant_context),
     session: AsyncSession = Depends(get_session),
 ) -> ContactPage:
-    query = select(Contact).where(Contact.tenant_id == context.tenant_id, Contact.status != "deleted")
-    if status_filter: query = query.where(Contact.status == status_filter)
-    if owner_user_id: query = query.where(Contact.owner_user_id == owner_user_id)
-    if tag: query = query.where(Contact.tags.contains([tag]))
-    if source_channel: query = query.where(Contact.source_channel == source_channel)
+    query = select(Contact).where(
+        Contact.tenant_id == context.tenant_id, Contact.status != "deleted"
+    )
+    if status_filter:
+        query = query.where(Contact.status == status_filter)
+    if owner_user_id:
+        query = query.where(Contact.owner_user_id == owner_user_id)
+    if tag:
+        query = query.where(Contact.tags.contains([tag]))
+    if source_channel:
+        query = query.where(Contact.source_channel == source_channel)
     if custom_field and custom_value is not None:
-        query = query.where(Contact.custom_fields[custom_field].as_string() == custom_value)
+        query = query.where(
+            Contact.custom_fields[custom_field].as_string() == custom_value
+        )
     try:
-        page = await paginate(session, query, cursor, limit, (Contact.created_at, Contact.id))
+        page = await paginate(
+            session, query, cursor, limit, (Contact.created_at, Contact.id)
+        )
     except (InvalidCursor, ValueError) as exc:
         raise HTTPException(status_code=400, detail={"code": "INVALID_CURSOR"}) from exc
-    return ContactPage(items=[ContactResponse.model_validate(row, from_attributes=True) for row in page.items], next_cursor=page.next_cursor)
+    return ContactPage(
+        items=[
+            ContactResponse.model_validate(row, from_attributes=True)
+            for row in page.items
+        ],
+        next_cursor=page.next_cursor,
+    )
 
 
-@router.post("/{contact_id}/export", response_model=ContactJobResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/{contact_id}/export",
+    response_model=ContactJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def export_contact_data(
     contact_id: UUID,
     response: Response,
@@ -197,8 +264,13 @@ async def export_contact_data(
     export_contact.delay(str(context.tenant_id), str(contact_id), str(job_id))
     response.headers["Location"] = f"/api/v1/jobs/{job_id}"
     await write_audit_event(
-        session, tenant_id=context.tenant_id, actor_type="user", actor_user_id=context.user_id,
-        action="contact.export_requested", resource_type="contact", resource_id=contact_id,
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.export_requested",
+        resource_type="contact",
+        resource_id=contact_id,
         metadata={"job_id": str(job_id)},
     )
     return ContactJobResponse(job_id=str(job_id), status="queued")
@@ -211,59 +283,142 @@ async def erase_contact(
     session: AsyncSession = Depends(get_session),
 ) -> ErasureResponse:
     try:
-        contact = await logically_erase_contact(session, tenant_id=context.tenant_id, contact_id=contact_id)
+        contact = await logically_erase_contact(
+            session, tenant_id=context.tenant_id, contact_id=contact_id
+        )
     except LookupError as exc:
-        raise HTTPException(status_code=404, detail={"code": "CONTACT_NOT_FOUND"}) from exc
+        raise HTTPException(
+            status_code=404, detail={"code": "CONTACT_NOT_FOUND"}
+        ) from exc
     settings = await session.get(TenantSettings, context.tenant_id)
-    retention_days = int(((settings.contact_info if settings else {}) or {}).get("retention_days", 365))
+    retention_days = int(
+        ((settings.contact_info if settings else {}) or {}).get("retention_days", 365)
+    )
     await write_audit_event(
-        session, tenant_id=context.tenant_id, actor_type="user", actor_user_id=context.user_id,
-        action="contact.erasure_requested", resource_type="contact", resource_id=contact_id,
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.erasure_requested",
+        resource_type="contact",
+        resource_id=contact_id,
         metadata={"retention_days": retention_days},
     )
-    return ErasureResponse(contact_id=contact.id, status="deleted", erasure_requested_at=contact.erasure_requested_at)
+    assert contact.erasure_requested_at is not None
+    return ErasureResponse(
+        contact_id=contact.id,
+        status="deleted",
+        erasure_requested_at=contact.erasure_requested_at,
+    )
 
 
 @router.get("/{contact_id}", response_model=ContactResponse)
-async def get_contact(contact_id: UUID, context: TenantContext = Depends(require_tenant_context), session: AsyncSession = Depends(get_session)) -> ContactResponse:
+async def get_contact(
+    contact_id: UUID,
+    context: TenantContext = Depends(require_tenant_context),
+    session: AsyncSession = Depends(get_session),
+) -> ContactResponse:
     contact = await _contact_or_404(session, context.tenant_id, contact_id)
     return ContactResponse.model_validate(contact, from_attributes=True)
 
 
 @router.patch("/{contact_id}", response_model=ContactResponse)
-async def update_contact(contact_id: UUID, payload: ContactUpdate, context: TenantContext = Depends(require_roles("supervisor", "administrador")), session: AsyncSession = Depends(get_session)) -> ContactResponse:
+async def update_contact(
+    contact_id: UUID,
+    payload: ContactUpdate,
+    context: TenantContext = Depends(require_roles("supervisor", "administrador")),
+    session: AsyncSession = Depends(get_session),
+) -> ContactResponse:
     contact = await _contact_or_404(session, context.tenant_id, contact_id)
     values = payload.model_dump(exclude_unset=True)
     if "custom_fields" in values and values["custom_fields"] is not None:
         try:
-            await validate_custom_field_payload(session, tenant_id=context.tenant_id, entity_type="contact", values=values["custom_fields"], require_all=False)
+            await validate_custom_field_payload(
+                session,
+                tenant_id=context.tenant_id,
+                entity_type="contact",
+                values=values["custom_fields"],
+                require_all=False,
+            )
         except CustomFieldValidationError as exc:
-            raise HTTPException(status_code=422, detail={"code": "INVALID_CUSTOM_FIELD", "field": exc.field_name, "reason": exc.reason}) from exc
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "INVALID_CUSTOM_FIELD",
+                    "field": exc.field_name,
+                    "reason": exc.reason,
+                },
+            ) from exc
         contact.custom_fields = {**contact.custom_fields, **values.pop("custom_fields")}
-    if "phone" in values and values["phone"]: values["phone"] = normalize_phone(values["phone"])
-    if "email" in values and values["email"]: values["email"] = normalize_email(values["email"])
-    for key, value in values.items(): setattr(contact, key, value)
-    await write_audit_event(session, tenant_id=context.tenant_id, actor_type="user", actor_user_id=context.user_id, action="contact.updated", resource_type="contact", resource_id=contact.id, metadata={"fields": list(payload.model_dump(exclude_unset=True))})
+    if "phone" in values and values["phone"]:
+        values["phone"] = normalize_phone(values["phone"])
+    if "email" in values and values["email"]:
+        values["email"] = normalize_email(values["email"])
+    for key, value in values.items():
+        setattr(contact, key, value)
+    await write_audit_event(
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.updated",
+        resource_type="contact",
+        resource_id=contact.id,
+        metadata={"fields": list(payload.model_dump(exclude_unset=True))},
+    )
     await session.flush()
     return ContactResponse.model_validate(contact, from_attributes=True)
 
 
-@router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-async def delete_contact(contact_id: UUID, context: TenantContext = Depends(require_roles("supervisor", "administrador")), session: AsyncSession = Depends(get_session)) -> None:
+@router.delete(
+    "/{contact_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
+)
+async def delete_contact(
+    contact_id: UUID,
+    context: TenantContext = Depends(require_roles("supervisor", "administrador")),
+    session: AsyncSession = Depends(get_session),
+) -> None:
     contact = await _contact_or_404(session, context.tenant_id, contact_id)
     contact.status = "deleted"
-    await write_audit_event(session, tenant_id=context.tenant_id, actor_type="user", actor_user_id=context.user_id, action="contact.deleted", resource_type="contact", resource_id=contact.id)
+    await write_audit_event(
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.deleted",
+        resource_type="contact",
+        resource_id=contact.id,
+    )
     await session.flush()
 
 
 @router.get("/{contact_id}/identities", response_model=list[IdentityResponse])
-async def list_contact_identities(contact_id: UUID, context: TenantContext = Depends(require_tenant_context), session: AsyncSession = Depends(get_session)) -> list[IdentityResponse]:
+async def list_contact_identities(
+    contact_id: UUID,
+    context: TenantContext = Depends(require_tenant_context),
+    session: AsyncSession = Depends(get_session),
+) -> list[IdentityResponse]:
     await _contact_or_404(session, context.tenant_id, contact_id)
-    rows = list((await session.scalars(select(ContactIdentity).where(ContactIdentity.tenant_id == context.tenant_id, ContactIdentity.contact_id == contact_id).order_by(ContactIdentity.id))).all())
+    rows = list(
+        (
+            await session.scalars(
+                select(ContactIdentity)
+                .where(
+                    ContactIdentity.tenant_id == context.tenant_id,
+                    ContactIdentity.contact_id == contact_id,
+                )
+                .order_by(ContactIdentity.id)
+            )
+        ).all()
+    )
     return [IdentityResponse.model_validate(row, from_attributes=True) for row in rows]
 
 
-@router.post("/{contact_id}/consent", response_model=ConsentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{contact_id}/consent",
+    response_model=ConsentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def grant_consent(
     contact_id: UUID,
     payload: ConsentRequest,
@@ -272,20 +427,37 @@ async def grant_consent(
 ) -> ConsentResponse:
     await _contact_or_404(session, context.tenant_id, contact_id)
     consent = Consent(
-        tenant_id=context.tenant_id, contact_id=contact_id, channel=payload.channel,
-        purpose=payload.purpose, status="granted", source=payload.source,
+        tenant_id=context.tenant_id,
+        contact_id=contact_id,
+        channel=payload.channel,
+        purpose=payload.purpose,
+        status="granted",
+        source=payload.source,
     )
     session.add(consent)
     await session.flush()
     await write_audit_event(
-        session, tenant_id=context.tenant_id, actor_type="user", actor_user_id=context.user_id,
-        action="contact.consent_granted", resource_type="consent", resource_id=consent.id,
-        metadata={"contact_id": contact_id, "channel": payload.channel, "purpose": payload.purpose},
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.consent_granted",
+        resource_type="consent",
+        resource_id=consent.id,
+        metadata={
+            "contact_id": contact_id,
+            "channel": payload.channel,
+            "purpose": payload.purpose,
+        },
     )
     return ConsentResponse.model_validate(consent, from_attributes=True)
 
 
-@router.post("/{contact_id}/opt-out", response_model=ConsentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{contact_id}/opt-out",
+    response_model=ConsentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def revoke_consent(
     contact_id: UUID,
     payload: OptOutRequest,
@@ -295,16 +467,30 @@ async def revoke_consent(
     await _contact_or_404(session, context.tenant_id, contact_id)
     revoked_at = datetime.now(UTC)
     consent = Consent(
-        tenant_id=context.tenant_id, contact_id=contact_id, channel=payload.channel,
-        purpose=payload.purpose, status="revoked", source="opt_out",
-        captured_at=revoked_at, revoked_at=revoked_at,
+        tenant_id=context.tenant_id,
+        contact_id=contact_id,
+        channel=payload.channel,
+        purpose=payload.purpose,
+        status="revoked",
+        source="opt_out",
+        captured_at=revoked_at,
+        revoked_at=revoked_at,
     )
     session.add(consent)
     await session.flush()
     await write_audit_event(
-        session, tenant_id=context.tenant_id, actor_type="user", actor_user_id=context.user_id,
-        action="contact.consent_revoked", resource_type="consent", resource_id=consent.id,
-        metadata={"contact_id": contact_id, "channel": payload.channel, "purpose": payload.purpose},
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.consent_revoked",
+        resource_type="consent",
+        resource_id=consent.id,
+        metadata={
+            "contact_id": contact_id,
+            "channel": payload.channel,
+            "purpose": payload.purpose,
+        },
     )
     return ConsentResponse.model_validate(consent, from_attributes=True)
 
@@ -314,39 +500,77 @@ async def list_merge_candidates(
     context: TenantContext = Depends(require_tenant_context),
     session: AsyncSession = Depends(get_session),
 ) -> list[MergeCandidateResponse]:
-    rows = list((await session.scalars(select(ContactMergeCandidate).where(
-        ContactMergeCandidate.tenant_id == context.tenant_id,
-        ContactMergeCandidate.status == "pending",
-    ).order_by(ContactMergeCandidate.created_at.asc()))).all())
-    return [MergeCandidateResponse.model_validate(row, from_attributes=True) for row in rows]
+    rows = list(
+        (
+            await session.scalars(
+                select(ContactMergeCandidate)
+                .where(
+                    ContactMergeCandidate.tenant_id == context.tenant_id,
+                    ContactMergeCandidate.status == "pending",
+                )
+                .order_by(ContactMergeCandidate.created_at.asc())
+            )
+        ).all()
+    )
+    return [
+        MergeCandidateResponse.model_validate(row, from_attributes=True) for row in rows
+    ]
 
 
-@router.post("/merge-candidates/{candidate_id}/resolve", response_model=MergeCandidateResponse)
+@router.post(
+    "/merge-candidates/{candidate_id}/resolve", response_model=MergeCandidateResponse
+)
 async def resolve_merge_candidate(
     candidate_id: UUID,
     payload: MergeResolutionRequest,
     context: TenantContext = Depends(require_roles("supervisor", "administrador")),
     session: AsyncSession = Depends(get_session),
 ) -> MergeCandidateResponse:
-    candidate = await session.scalar(select(ContactMergeCandidate).where(
-        ContactMergeCandidate.id == candidate_id,
-        ContactMergeCandidate.tenant_id == context.tenant_id,
-    ).with_for_update())
+    candidate = await session.scalar(
+        select(ContactMergeCandidate)
+        .where(
+            ContactMergeCandidate.id == candidate_id,
+            ContactMergeCandidate.tenant_id == context.tenant_id,
+        )
+        .with_for_update()
+    )
     if candidate is None or candidate.status != "pending":
-        raise HTTPException(status_code=404, detail={"code": "MERGE_CANDIDATE_NOT_FOUND"})
+        raise HTTPException(
+            status_code=404, detail={"code": "MERGE_CANDIDATE_NOT_FOUND"}
+        )
     if payload.action not in {"merge", "dismiss"}:
         raise HTTPException(status_code=422, detail={"code": "INVALID_MERGE_ACTION"})
     if payload.action == "merge":
         keep_id = payload.keep_contact_id or candidate.contact_id_a
-        drop_id = candidate.contact_id_b if keep_id == candidate.contact_id_a else candidate.contact_id_a
-        keep = await session.scalar(select(Contact).where(Contact.id == keep_id, Contact.tenant_id == context.tenant_id).with_for_update())
-        drop = await session.scalar(select(Contact).where(Contact.id == drop_id, Contact.tenant_id == context.tenant_id).with_for_update())
+        drop_id = (
+            candidate.contact_id_b
+            if keep_id == candidate.contact_id_a
+            else candidate.contact_id_a
+        )
+        keep = await session.scalar(
+            select(Contact)
+            .where(Contact.id == keep_id, Contact.tenant_id == context.tenant_id)
+            .with_for_update()
+        )
+        drop = await session.scalar(
+            select(Contact)
+            .where(Contact.id == drop_id, Contact.tenant_id == context.tenant_id)
+            .with_for_update()
+        )
         if keep is None or drop is None:
-            raise HTTPException(status_code=422, detail={"code": "INVALID_MERGE_CONTACTS"})
-        identities = list((await session.scalars(select(ContactIdentity).where(
-            ContactIdentity.tenant_id == context.tenant_id,
-            ContactIdentity.contact_id == drop.id,
-        ))).all())
+            raise HTTPException(
+                status_code=422, detail={"code": "INVALID_MERGE_CONTACTS"}
+            )
+        identities = list(
+            (
+                await session.scalars(
+                    select(ContactIdentity).where(
+                        ContactIdentity.tenant_id == context.tenant_id,
+                        ContactIdentity.contact_id == drop.id,
+                    )
+                )
+            ).all()
+        )
         for identity in identities:
             identity.contact_id = keep.id
         keep.phone = keep.phone or drop.phone
@@ -359,9 +583,14 @@ async def resolve_merge_candidate(
     candidate.resolved_at = datetime.now(UTC)
     candidate.resolved_by_user_id = context.user_id
     await write_audit_event(
-        session, tenant_id=context.tenant_id, actor_type="user", actor_user_id=context.user_id,
-        action=f"contact.merge_candidate.{payload.action}", resource_type="contact_merge_candidate",
-        resource_id=candidate.id, metadata={"keep_contact_id": payload.keep_contact_id},
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action=f"contact.merge_candidate.{payload.action}",
+        resource_type="contact_merge_candidate",
+        resource_id=candidate.id,
+        metadata={"keep_contact_id": payload.keep_contact_id},
     )
     await session.flush()
     return MergeCandidateResponse.model_validate(candidate, from_attributes=True)

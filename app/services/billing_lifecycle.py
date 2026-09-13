@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.billing import BillingPlan, Subscription
+from app.models.billing import Subscription
 
 
 async def activate_subscription(session: AsyncSession, *, tenant_id: UUID, plan_id: UUID, period_start: date, period_end: date) -> Subscription:

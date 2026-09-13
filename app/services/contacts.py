@@ -37,6 +37,7 @@ async def find_or_create_contact(
         if len(asset_ids) != 1:
             raise ValueError("channel_asset_id is required when channel has zero or multiple assets")
         channel_asset_id = asset_ids[0]
+    assert channel_asset_id is not None
     identity = await get_contact_identity(session, tenant_id=tenant_id, channel_asset_id=channel_asset_id, external_user_id=external_user_id)
     if identity is not None:
         contact = await session.scalar(select(Contact).where(Contact.tenant_id == tenant_id, Contact.id == identity.contact_id, Contact.status != "deleted", Contact.deleted_at.is_(None)))
@@ -71,11 +72,14 @@ async def find_or_create_contact(
 async def find_or_create_contact_with_decision(
     session: AsyncSession, **kwargs
 ) -> ContactResolution:
-    existing = await get_contact_identity(
-        session,
-        tenant_id=kwargs["tenant_id"],
-        channel_asset_id=kwargs.get("channel_asset_id"),
-        external_user_id=kwargs["external_user_id"],
-    ) if kwargs.get("channel_asset_id") else None
+    channel_asset_id = kwargs.get("channel_asset_id")
+    existing = None
+    if channel_asset_id is not None:
+        existing = await get_contact_identity(
+            session,
+            tenant_id=kwargs["tenant_id"],
+            channel_asset_id=channel_asset_id,
+            external_user_id=kwargs["external_user_id"],
+        )
     contact = await find_or_create_contact(session, **kwargs)
     return ContactResolution(contact=contact, matched_existing=existing is not None, identity_created=existing is None)
