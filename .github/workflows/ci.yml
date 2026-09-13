@@ -69,7 +69,18 @@ jobs:
           fi
         env:
           DATABASE_URL: postgresql+asyncpg://omni:omni@localhost:5432/omni
-      - run: pytest
+      - name: Run test suite
+        shell: bash
+        run: |
+          set +e
+          output="$(pytest 2>&1)"
+          status=$?
+          printf '%s\n' "$output"
+          if [ "$status" -ne 0 ]; then
+            summary="$(printf '%s' "$output" | tr '\n' ' ' | cut -c1-3000)"
+            echo "::error title=Pytest failed::$summary"
+            exit "$status"
+          fi
         env:
           DATABASE_URL: postgresql+asyncpg://omni:omni@localhost:5432/omni
           REDIS_URL: redis://localhost:6379/0

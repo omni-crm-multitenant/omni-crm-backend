@@ -7,6 +7,8 @@ WORKDIR /app
 RUN addgroup --system omni && adduser --system --ingroup omni omni
 COPY requirements.lock .
 RUN python -m pip install --upgrade --no-cache-dir pip \
+    && python -m pip uninstall --yes msgpack setuptools \
+    && find /usr/local /usr/lib -type d \( -name 'msgpack*' -o -name 'setuptools*' \) -prune -exec rm -rf {} + \
     && python -m pip install --no-cache-dir msgpack==1.2.1 setuptools==83.0.0 \
     && python -m pip install --upgrade --no-cache-dir --requirement requirements.lock \
     && python -c "import importlib.metadata as m; assert m.version('msgpack') == '1.2.1'; assert m.version('setuptools') == '83.0.0'"
