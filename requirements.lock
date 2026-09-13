@@ -74,6 +74,8 @@ mako==1.4.1
     # via alembic
 markupsafe==3.0.3
     # via mako
+msgpack==1.2.1
+    # via -r requirements.in
 packaging==26.3
     # via
     #   kombu
@@ -115,6 +117,8 @@ redis==5.2.1
     # via
     #   -r requirements.in
     #   kombu
+setuptools==83.0.0
+    # via -r requirements.in
 six==1.17.0
     # via python-dateutil
 sqlalchemy==2.0.43
