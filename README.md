@@ -288,10 +288,10 @@ Necesitas:
    .\scripts\docker.ps1 compose up -d --build
    ```
 
-4. Aplica las migraciones:
+4. Las migraciones se ejecutan automáticamente mediante el servicio `migrate` antes de que arranquen la API y los workers. Para ejecutarlas manualmente en un entorno ya iniciado:
 
    ```powershell
-   .\scripts\docker.ps1 compose exec -T app alembic upgrade head
+   .\scripts\docker.ps1 compose run --rm migrate
    ```
 
 5. Comprueba los contenedores:

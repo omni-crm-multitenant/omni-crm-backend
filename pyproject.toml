@@ -29,6 +29,10 @@ test = [
     "pytest-asyncio==1.1.0",
     "aiosqlite==0.21.0",
 ]
+quality = [
+    "ruff==0.12.11",
+    "mypy==1.17.1",
+]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
