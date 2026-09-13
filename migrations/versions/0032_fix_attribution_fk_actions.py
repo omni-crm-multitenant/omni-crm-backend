@@ -1,14 +1,14 @@
 """Align nullable attribution foreign keys with domain delete behavior.
 
-Revision ID: 0032_fix_attribution_fk_actions
-Revises: 0031_attributions
+Revision ID: 0051_fix_attribution_fk_actions
+Revises: 0050_billing_usage_events
 """
 
 from alembic import op
 
 
-revision = "0032_fix_attribution_fk_actions"
-down_revision = "0031_attributions"
+revision = "0051_fix_attribution_fk_actions"
+down_revision = "0050_billing_usage_events"
 branch_labels = None
 depends_on = None
 
