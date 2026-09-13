@@ -7,20 +7,25 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_session, require_tenant_context
+from app.application.contacts import (
+    ContactListQuery,
+    CreateContactCommand,
+    UpdateContactCommand,
+    create_contact as create_contact_case,
+    list_contacts as list_contacts_case,
+    update_contact as update_contact_case,
+)
 from app.core.tenant_context import TenantContext
 from app.models.crm import Consent, Contact, ContactIdentity
 from app.models.merge_candidates import ContactMergeCandidate
 from app.models.operations import TenantSettings
 from app.services.audit import write_audit_event
 from app.api.dependencies import require_roles
-from app.services.custom_fields import (
-    CustomFieldValidationError,
-    validate_custom_field_payload,
-)
+from app.services.custom_fields import CustomFieldValidationError
 from app.services.contact_privacy import logically_erase_contact
 from app.services.jobs import create_job
-from app.services.normalization import normalize_email, normalize_phone
-from app.core.pagination import InvalidCursor, paginate
+
+from app.core.pagination import InvalidCursor
 from app.workers.contact_privacy_tasks import export_contact
 
 
@@ -171,12 +176,10 @@ async def create_contact(
     session: AsyncSession = Depends(get_session),
 ) -> ContactResponse:
     try:
-        await validate_custom_field_payload(
+        contact = await create_contact_case(
             session,
-            tenant_id=context.tenant_id,
-            entity_type="contact",
-            values=payload.custom_fields,
-            require_all=False,
+            context=context,
+            command=CreateContactCommand(**payload.model_dump()),
         )
     except CustomFieldValidationError as exc:
         raise HTTPException(
@@ -187,21 +190,6 @@ async def create_contact(
                 "reason": exc.reason,
             },
         ) from exc
-    values = payload.model_dump()
-    values["phone"] = normalize_phone(values["phone"]) if values.get("phone") else None
-    values["email"] = normalize_email(values["email"]) if values.get("email") else None
-    contact = Contact(tenant_id=context.tenant_id, **values)
-    session.add(contact)
-    await session.flush()
-    await write_audit_event(
-        session,
-        tenant_id=context.tenant_id,
-        actor_type="user",
-        actor_user_id=context.user_id,
-        action="contact.created",
-        resource_type="contact",
-        resource_id=contact.id,
-    )
     return ContactResponse.model_validate(contact, from_attributes=True)
 
 
@@ -218,24 +206,20 @@ async def list_contacts(
     context: TenantContext = Depends(require_tenant_context),
     session: AsyncSession = Depends(get_session),
 ) -> ContactPage:
-    query = select(Contact).where(
-        Contact.tenant_id == context.tenant_id, Contact.status != "deleted"
-    )
-    if status_filter:
-        query = query.where(Contact.status == status_filter)
-    if owner_user_id:
-        query = query.where(Contact.owner_user_id == owner_user_id)
-    if tag:
-        query = query.where(Contact.tags.contains([tag]))
-    if source_channel:
-        query = query.where(Contact.source_channel == source_channel)
-    if custom_field and custom_value is not None:
-        query = query.where(
-            Contact.custom_fields[custom_field].as_string() == custom_value
-        )
     try:
-        page = await paginate(
-            session, query, cursor, limit, (Contact.created_at, Contact.id)
+        page = await list_contacts_case(
+            session,
+            context=context,
+            query=ContactListQuery(
+                status=status_filter,
+                owner_user_id=owner_user_id,
+                tag=tag,
+                source_channel=source_channel,
+                custom_field=custom_field,
+                custom_value=custom_value,
+                cursor=cursor,
+                limit=limit,
+            ),
         )
     except (InvalidCursor, ValueError) as exc:
         raise HTTPException(status_code=400, detail={"code": "INVALID_CURSOR"}) from exc
@@ -330,43 +314,22 @@ async def update_contact(
     session: AsyncSession = Depends(get_session),
 ) -> ContactResponse:
     contact = await _contact_or_404(session, context.tenant_id, contact_id)
-    values = payload.model_dump(exclude_unset=True)
-    if "custom_fields" in values and values["custom_fields"] is not None:
-        try:
-            await validate_custom_field_payload(
-                session,
-                tenant_id=context.tenant_id,
-                entity_type="contact",
-                values=values["custom_fields"],
-                require_all=False,
-            )
-        except CustomFieldValidationError as exc:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "code": "INVALID_CUSTOM_FIELD",
-                    "field": exc.field_name,
-                    "reason": exc.reason,
-                },
-            ) from exc
-        contact.custom_fields = {**contact.custom_fields, **values.pop("custom_fields")}
-    if "phone" in values and values["phone"]:
-        values["phone"] = normalize_phone(values["phone"])
-    if "email" in values and values["email"]:
-        values["email"] = normalize_email(values["email"])
-    for key, value in values.items():
-        setattr(contact, key, value)
-    await write_audit_event(
-        session,
-        tenant_id=context.tenant_id,
-        actor_type="user",
-        actor_user_id=context.user_id,
-        action="contact.updated",
-        resource_type="contact",
-        resource_id=contact.id,
-        metadata={"fields": list(payload.model_dump(exclude_unset=True))},
-    )
-    await session.flush()
+    try:
+        contact = await update_contact_case(
+            session,
+            context=context,
+            contact=contact,
+            command=UpdateContactCommand(payload.model_dump(exclude_unset=True)),
+        )
+    except CustomFieldValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_CUSTOM_FIELD",
+                "field": exc.field_name,
+                "reason": exc.reason,
+            },
+        ) from exc
     return ContactResponse.model_validate(contact, from_attributes=True)
 
 
