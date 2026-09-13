@@ -100,7 +100,6 @@ async def test_opportunity_type_change_detects_values_when_table_is_available() 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-        await connection.execute(text("CREATE TABLE opportunities (tenant_id TEXT, custom_fields JSON NOT NULL)"))
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory.begin() as session:
         tenant = Tenant(name="Opportunity", slug="opportunity-custom")
@@ -115,8 +114,8 @@ async def test_opportunity_type_change_detects_values_when_table_is_available() 
         session.add(definition)
         await session.flush()
         await session.execute(
-            text("INSERT INTO opportunities (tenant_id, custom_fields) VALUES (:tenant_id, :fields)"),
-            {"tenant_id": str(tenant.id), "fields": '{"budget": 500}'},
+            text("INSERT INTO opportunities (id, tenant_id, contact_id, pipeline_id, stage_id, custom_fields) VALUES (:id, :tenant_id, :id, :id, :id, :fields)"),
+            {"id": str(tenant.id), "tenant_id": str(tenant.id), "fields": '{"budget": 500}'},
         )
         with pytest.raises(ExplicitValueMigrationRequired):
             await change_custom_field_type(session, definition, "text")
