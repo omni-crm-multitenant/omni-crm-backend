@@ -12,7 +12,7 @@ from app.api.dependencies import get_session, require_tenant_context
 from app.core.config import get_settings
 from app.core.tenant_context import TenantContext
 from app.models.billing import BillingPlan, Subscription
-from app.services.authorization import require_roles
+from app.api.dependencies import require_roles
 from app.services.billing_lifecycle import cancel_subscription
 from app.services.billing_provider import ProviderNotEnabled, billing_provider
 from app.services.billing_usage import usage_meters

@@ -35,6 +35,18 @@ services:
       timeout: 3s
       retries: 10
 
+  migrate:
+    build: .
+    env_file: [.env.local]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://omni:omni@postgres:5432/omni
+      REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: {condition: service_healthy}
+
   app:
     build: .
     env_file: [.env.local]
@@ -48,6 +60,7 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
       interval: 10s
@@ -66,6 +79,7 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
 
   beat:
     build: .
@@ -79,6 +93,7 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
 
 volumes:
   postgres_data:

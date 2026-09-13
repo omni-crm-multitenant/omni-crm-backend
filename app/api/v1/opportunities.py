@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_session, require_tenant_context
 from app.core.tenant_context import TenantContext
-from app.services.authorization import require_roles, validate_assignee_membership
+from app.api.dependencies import require_roles
+from app.services.authorization import validate_assignee_membership
 
 
 router = APIRouter(prefix="/opportunities", tags=["opportunities"])

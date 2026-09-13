@@ -12,7 +12,7 @@ from app.core.tenant_context import TenantContext
 from app.models.identity import Tenant
 from app.models.operations import TenantSettings
 from app.services.audit import write_audit_event
-from app.services.authorization import require_roles
+from app.api.dependencies import require_roles
 
 
 router = APIRouter(prefix="/tenants/{tenant_id}/settings", tags=["tenant-settings"])

@@ -13,7 +13,7 @@ from app.core.pagination import InvalidCursor, paginate
 from app.core.sanitization import sanitize_metadata
 from app.core.tenant_context import TenantContext
 from app.models.operations import AuditEvent
-from app.services.authorization import require_roles
+from app.api.dependencies import require_roles
 
 
 router = APIRouter(prefix="/audit-events", tags=["audit"])

@@ -13,7 +13,7 @@ from app.api.dependencies import get_session, require_tenant_context
 from app.core.tenant_context import TenantContext
 from app.models.crm import CustomFieldDefinition
 from app.services.audit import write_audit_event
-from app.services.authorization import require_roles
+from app.api.dependencies import require_roles
 from app.services.custom_fields import (
     ExplicitValueMigrationRequired,
     change_custom_field_type,

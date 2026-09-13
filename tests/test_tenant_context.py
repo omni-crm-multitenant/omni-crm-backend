@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.api.dependencies import CurrentIdentity, require_tenant_context
+from app.core.tenant_context import clear_current_tenant_id, get_current_tenant_id
 from app.db.base import Base
 from app.models.identity import ChannelAsset, Membership, Tenant, User
 from app.services.integration_context import (
@@ -44,7 +45,9 @@ async def test_session_context_reads_current_role_and_rejects_disabled_membershi
     async with factory() as session:
         context = await require_tenant_context(identity, session)
         assert context.tenant_id == tenant_id
+        assert get_current_tenant_id() == tenant_id
         assert context.role == "agente_comercial"
+    clear_current_tenant_id()
     async with factory.begin() as session:
         membership = await session.get(Membership, membership_id)
         membership.role = "supervisor"

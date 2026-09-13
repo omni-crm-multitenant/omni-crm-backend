@@ -10,7 +10,7 @@ from app.core.tenant_context import TenantContext
 from app.models.ai import AiProfile
 from app.services.ai_models import ModelRegistryError, SUPPORTED_MODELS
 from app.services.ai_profiles import save_ai_profile
-from app.services.authorization import require_roles
+from app.api.dependencies import require_roles
 from app.services.audit import write_audit_event
 
 

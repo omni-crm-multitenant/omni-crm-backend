@@ -13,7 +13,7 @@ from app.core.tenant_context import TenantContext
 from app.models.automation_action_attempt import AutomationActionAttempt
 from app.models.automation_execution import AutomationExecution
 from app.services.audit import write_audit_event
-from app.services.authorization import require_roles
+from app.api.dependencies import require_roles
 
 
 router = APIRouter(prefix="/automation-executions", tags=["automation-executions"])

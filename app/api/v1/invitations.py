@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_session
 from app.core.tenant_context import TenantContext
-from app.services.authorization import require_roles
+from app.api.dependencies import require_roles
 from app.services.invitations import (
     InvalidInvitation,
     InvitationConflict,

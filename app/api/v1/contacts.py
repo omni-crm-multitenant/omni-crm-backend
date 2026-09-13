@@ -12,7 +12,7 @@ from app.models.crm import Consent, Contact, ContactIdentity
 from app.models.merge_candidates import ContactMergeCandidate
 from app.models.operations import TenantSettings
 from app.services.audit import write_audit_event
-from app.services.authorization import require_roles
+from app.api.dependencies import require_roles
 from app.services.custom_fields import CustomFieldValidationError, validate_custom_field_payload
 from app.services.contact_privacy import logically_erase_contact
 from app.services.jobs import create_job

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.models.identity import Membership, User
-from app.core.tenant_context import TenantContext
+from app.core.tenant_context import TenantContext, set_current_tenant_id
 from app.core.tokens import InvalidToken, decode_token
 from app.services.sessions import InvalidSession, validate_access_session
 from app.core.request_context import actor_id_var
@@ -82,12 +83,38 @@ async def require_tenant_context(
     if membership is None:
         raise HTTPException(status_code=403, detail={"code": "MEMBERSHIP_INACTIVE"})
     actor_id_var.set(membership.user_id)
+    set_current_tenant_id(membership.tenant_id)
     return TenantContext(
         tenant_id=membership.tenant_id,
         membership_id=membership.id,
         user_id=membership.user_id,
         role=membership.role,
     )
+
+Role = Literal["administrador", "supervisor", "agente_comercial"]
+
+
+def require_roles(*allowed_roles: Role):
+    allowed = frozenset(allowed_roles)
+
+    async def dependency(context: TenantContext = Depends(require_tenant_context)) -> TenantContext:
+        if context.role not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "ROLE_FORBIDDEN"},
+            )
+        return context
+
+    return dependency
+
+
+async def require_supervisor_or_admin(
+    context: TenantContext = Depends(require_tenant_context),
+) -> TenantContext:
+    if context.role not in {"administrador", "supervisor"}:
+        raise HTTPException(status_code=403, detail={"code": "ROLE_FORBIDDEN"})
+    return context
+
 
 __all__ = [
     "CurrentIdentity",

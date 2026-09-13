@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_session, require_tenant_context
 from app.core.tenant_context import TenantContext
 from app.models.identity import ChannelAsset
-from app.services.authorization import require_roles
+from app.api.dependencies import require_roles
 from app.services.meta_oauth import (
     MetaAssetType,
     MetaOAuthError,

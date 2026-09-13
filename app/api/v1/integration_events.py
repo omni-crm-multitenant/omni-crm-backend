@@ -10,7 +10,7 @@ from app.api.dependencies import get_session
 from app.core.tenant_context import TenantContext
 from app.models.operations import WebhookEvent
 from app.services.audit import write_audit_event
-from app.services.authorization import require_roles
+from app.api.dependencies import require_roles
 
 
 router = APIRouter(prefix="/integration-events", tags=["integration-events"])

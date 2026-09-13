@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.openapi.utils import get_openapi
@@ -11,11 +12,18 @@ from app.core.logging_config import configure_logging
 from app.core.metrics import record_http_request
 from app.core.request_context import request_id_var, actor_id_var
 from app.core.metrics import snapshot_metrics
-from app.services.rate_limiter import InMemoryLimiter
+from app.services.rate_limiter import InMemoryLimiter, RedisSlidingWindowLimiter
 import asyncio
 from sqlalchemy import text
 from app.db.session import engine
 from redis.asyncio import from_url as redis_from_url
+
+
+@asynccontextmanager
+async def app_lifespan(application: FastAPI):
+    yield
+    if application.state.limiter_redis is not None:
+        await application.state.limiter_redis.aclose()
 
 
 def create_app() -> FastAPI:
@@ -35,9 +43,16 @@ def create_app() -> FastAPI:
         docs_url="/api/v1/docs",
         openapi_url="/api/v1/openapi.json",
         redoc_url=None,
+        lifespan=app_lifespan,
     )
     application.include_router(api_router, prefix="/api/v1")
-    application.state.limiter = InMemoryLimiter()
+    if settings.app_env == "production":
+        limiter_redis = redis_from_url(settings.redis_url)
+        application.state.limiter_redis = limiter_redis
+        application.state.limiter = RedisSlidingWindowLimiter(limiter_redis)
+    else:
+        application.state.limiter_redis = None
+        application.state.limiter = InMemoryLimiter()
 
     @application.get("/metrics", include_in_schema=False)
     async def metrics_endpoint():
