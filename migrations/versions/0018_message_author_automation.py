@@ -5,7 +5,6 @@ Revises: 0017_contact_identities
 """
 
 from alembic import op
-import sqlalchemy as sa
 
 
 revision = "0018_message_author_automation"

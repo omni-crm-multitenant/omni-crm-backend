@@ -10,7 +10,7 @@ RUN apt-get update \
     && apt-get upgrade --yes \
     && rm -rf /var/lib/apt/lists/* \
     && python -m pip install --upgrade --no-cache-dir pip \
-    && python -m pip install --no-cache-dir --requirement requirements.lock
+    && python -m pip install --upgrade --no-cache-dir --requirement requirements.lock
 COPY . .
 RUN chown -R omni:omni /app
 USER omni

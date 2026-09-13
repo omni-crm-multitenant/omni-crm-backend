@@ -1,7 +1,8 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import JSON, pool
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import get_settings
@@ -16,20 +17,27 @@ config.set_main_option("sqlalchemy.url", get_settings().database_url)
 target_metadata = Base.metadata
 
 
+def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):
+    """Treat portable JSON/JSONB variants as equivalent during autogeneration."""
+    if isinstance(inspected_type, (JSON, JSONB)) and isinstance(metadata_type, (JSON, JSONB)):
+        return False
+    return None
+
+
 def run_migrations_offline() -> None:
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        compare_type=True,
+        compare_type=compare_type,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+    context.configure(connection=connection, target_metadata=target_metadata, compare_type=compare_type)
     with context.begin_transaction():
         context.run_migrations()
 

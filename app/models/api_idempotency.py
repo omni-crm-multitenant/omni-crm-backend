@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, func, text
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -12,7 +12,7 @@ from app.models.crm import json_type
 
 class ApiIdempotencyKey(Base):
     __tablename__ = "api_idempotency_keys"
-    __table_args__ = (Index("uq_api_idempotency_scope", "scope", "endpoint", "key", unique=True),)
+    __table_args__ = (UniqueConstraint("scope", "endpoint", "key", name="uq_api_idempotency_scope"),)
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
     tenant_id: Mapped[UUID | None] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
