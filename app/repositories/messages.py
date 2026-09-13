@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.crm import Message
-from app.services.message_authors import MessageAuthor, validate_message_author_storage
+from app.domain.message_authors import MessageAuthor, validate_message_author_storage
 
 
 async def create_message(

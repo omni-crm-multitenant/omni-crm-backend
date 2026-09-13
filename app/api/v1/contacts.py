@@ -8,22 +8,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_session, require_tenant_context
 from app.application.contacts import (
+    ConsentCommand,
     ContactListQuery,
     CreateContactCommand,
     UpdateContactCommand,
     create_contact as create_contact_case,
+    grant_contact_consent,
+    logically_delete_contact,
     list_contacts as list_contacts_case,
+    request_contact_export,
+    revoke_contact_consent,
     update_contact as update_contact_case,
 )
 from app.core.tenant_context import TenantContext
-from app.models.crm import Consent, Contact, ContactIdentity
+from app.models.crm import Contact, ContactIdentity
 from app.models.merge_candidates import ContactMergeCandidate
 from app.models.operations import TenantSettings
 from app.services.audit import write_audit_event
 from app.api.dependencies import require_roles
 from app.services.custom_fields import CustomFieldValidationError
 from app.services.contact_privacy import logically_erase_contact
-from app.services.jobs import create_job
+
 
 from app.core.pagination import InvalidCursor
 from app.workers.contact_privacy_tasks import export_contact
@@ -244,19 +249,13 @@ async def export_contact_data(
     session: AsyncSession = Depends(get_session),
 ) -> ContactJobResponse:
     await _contact_or_404(session, context.tenant_id, contact_id)
-    job_id = await create_job(session, context.tenant_id, "contact_export")
-    export_contact.delay(str(context.tenant_id), str(contact_id), str(job_id))
-    response.headers["Location"] = f"/api/v1/jobs/{job_id}"
-    await write_audit_event(
+    job_id = await request_contact_export(
         session,
-        tenant_id=context.tenant_id,
-        actor_type="user",
-        actor_user_id=context.user_id,
-        action="contact.export_requested",
-        resource_type="contact",
-        resource_id=contact_id,
-        metadata={"job_id": str(job_id)},
+        context=context,
+        contact_id=contact_id,
+        enqueue_export=export_contact.delay,
     )
+    response.headers["Location"] = f"/api/v1/jobs/{job_id}"
     return ContactJobResponse(job_id=str(job_id), status="queued")
 
 
@@ -342,17 +341,7 @@ async def delete_contact(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     contact = await _contact_or_404(session, context.tenant_id, contact_id)
-    contact.status = "deleted"
-    await write_audit_event(
-        session,
-        tenant_id=context.tenant_id,
-        actor_type="user",
-        actor_user_id=context.user_id,
-        action="contact.deleted",
-        resource_type="contact",
-        resource_id=contact.id,
-    )
-    await session.flush()
+    await logically_delete_contact(session, context=context, contact=contact)
 
 
 @router.get("/{contact_id}/identities", response_model=list[IdentityResponse])
@@ -389,29 +378,11 @@ async def grant_consent(
     session: AsyncSession = Depends(get_session),
 ) -> ConsentResponse:
     await _contact_or_404(session, context.tenant_id, contact_id)
-    consent = Consent(
-        tenant_id=context.tenant_id,
-        contact_id=contact_id,
-        channel=payload.channel,
-        purpose=payload.purpose,
-        status="granted",
-        source=payload.source,
-    )
-    session.add(consent)
-    await session.flush()
-    await write_audit_event(
+    consent = await grant_contact_consent(
         session,
-        tenant_id=context.tenant_id,
-        actor_type="user",
-        actor_user_id=context.user_id,
-        action="contact.consent_granted",
-        resource_type="consent",
-        resource_id=consent.id,
-        metadata={
-            "contact_id": contact_id,
-            "channel": payload.channel,
-            "purpose": payload.purpose,
-        },
+        context=context,
+        contact_id=contact_id,
+        command=ConsentCommand(payload.channel, payload.purpose, payload.source),
     )
     return ConsentResponse.model_validate(consent, from_attributes=True)
 
@@ -428,32 +399,11 @@ async def revoke_consent(
     session: AsyncSession = Depends(get_session),
 ) -> ConsentResponse:
     await _contact_or_404(session, context.tenant_id, contact_id)
-    revoked_at = datetime.now(UTC)
-    consent = Consent(
-        tenant_id=context.tenant_id,
-        contact_id=contact_id,
-        channel=payload.channel,
-        purpose=payload.purpose,
-        status="revoked",
-        source="opt_out",
-        captured_at=revoked_at,
-        revoked_at=revoked_at,
-    )
-    session.add(consent)
-    await session.flush()
-    await write_audit_event(
+    consent = await revoke_contact_consent(
         session,
-        tenant_id=context.tenant_id,
-        actor_type="user",
-        actor_user_id=context.user_id,
-        action="contact.consent_revoked",
-        resource_type="consent",
-        resource_id=consent.id,
-        metadata={
-            "contact_id": contact_id,
-            "channel": payload.channel,
-            "purpose": payload.purpose,
-        },
+        context=context,
+        contact_id=contact_id,
+        command=ConsentCommand(payload.channel, payload.purpose, "opt_out"),
     )
     return ConsentResponse.model_validate(consent, from_attributes=True)
 

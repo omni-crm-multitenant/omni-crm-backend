@@ -117,6 +117,8 @@ async def update_contact(
     contact: Contact,
     command: UpdateContactCommand,
 ) -> Contact:
+    if contact.tenant_id != context.tenant_id:
+        raise LookupError("CONTACT_NOT_FOUND")
     values = dict(command.values)
     if "custom_fields" in values and values["custom_fields"] is not None:
         await validate_custom_field_payload(
@@ -145,3 +147,127 @@ async def update_contact(
     )
     await session.flush()
     return contact
+
+
+@dataclass(frozen=True)
+class ConsentCommand:
+    channel: str
+    purpose: str
+    source: str
+
+
+async def grant_contact_consent(
+    session: AsyncSession,
+    *,
+    context: TenantContext,
+    contact_id: UUID,
+    command: ConsentCommand,
+):
+    from app.models.crm import Consent
+
+    consent = Consent(
+        tenant_id=context.tenant_id,
+        contact_id=contact_id,
+        channel=command.channel,
+        purpose=command.purpose,
+        status="granted",
+        source=command.source,
+    )
+    session.add(consent)
+    await session.flush()
+    await write_audit_event(
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.consent_granted",
+        resource_type="consent",
+        resource_id=consent.id,
+        metadata={"contact_id": contact_id, "channel": command.channel, "purpose": command.purpose},
+    )
+    return consent
+
+
+async def revoke_contact_consent(
+    session: AsyncSession,
+    *,
+    context: TenantContext,
+    contact_id: UUID,
+    command: ConsentCommand,
+):
+    from datetime import UTC, datetime
+    from app.models.crm import Consent
+
+    revoked_at = datetime.now(UTC)
+    consent = Consent(
+        tenant_id=context.tenant_id,
+        contact_id=contact_id,
+        channel=command.channel,
+        purpose=command.purpose,
+        status="revoked",
+        source=command.source,
+        captured_at=revoked_at,
+        revoked_at=revoked_at,
+    )
+    session.add(consent)
+    await session.flush()
+    await write_audit_event(
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.consent_revoked",
+        resource_type="consent",
+        resource_id=consent.id,
+        metadata={"contact_id": contact_id, "channel": command.channel, "purpose": command.purpose},
+    )
+    return consent
+
+
+async def logically_delete_contact(
+    session: AsyncSession,
+    *,
+    context: TenantContext,
+    contact: Contact,
+) -> Contact:
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC)
+    contact.status = "deleted"
+    contact.deleted_at = now
+    contact.erasure_requested_at = now
+    await write_audit_event(
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.deleted",
+        resource_type="contact",
+        resource_id=contact.id,
+    )
+    await session.flush()
+    return contact
+
+
+async def request_contact_export(
+    session: AsyncSession,
+    *,
+    context: TenantContext,
+    contact_id: UUID,
+    enqueue_export,
+):
+    from app.services.jobs import create_job
+
+    job_id = await create_job(session, context.tenant_id, "contact_export")
+    enqueue_export(str(context.tenant_id), str(contact_id), str(job_id))
+    await write_audit_event(
+        session,
+        tenant_id=context.tenant_id,
+        actor_type="user",
+        actor_user_id=context.user_id,
+        action="contact.export_requested",
+        resource_type="contact",
+        resource_id=contact_id,
+        metadata={"job_id": str(job_id)},
+    )
+    return job_id

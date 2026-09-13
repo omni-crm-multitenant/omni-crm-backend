@@ -155,14 +155,19 @@ Aplicado y verificado:
 - El cliente Redis del limitador se cierra mediante lifespan.
 - Compose ejecuta un único servicio `migrate` con `alembic upgrade head` antes de API, worker y beat.
 - Las dependencias HTTP `require_roles` viven en `app/api/dependencies.py`, no en `app/services/authorization.py`.
+- El piloto de contactos tiene casos de uso para crear, listar, actualizar, consentir, revocar consentimiento, exportar y borrar lógicamente.
+- Los routers de contactos no gestionan consultas, validación de dominio ni persistencia para esos casos.
+- Los repositorios no importan servicios; los value objects compartidos viven en `app/domain`.
+- Existen pruebas arquitectónicas de límites, aislamiento tenant y rollback de unidad de trabajo.
 - Suite completa: 113 pruebas ejecutadas, 6 omitidas, 0 fallos.
 
 Pendiente en iteraciones posteriores:
 
-- Extraer todos los accesos directos de modelos/sesiones de los routers; `contacts` es el piloto.
-- Normalizar commits internos y la unidad de trabajo de OAuth/workers.
+- Confirmar en CI remoto `alembic upgrade head` y `alembic check` sobre PostgreSQL real.
+- Extraer casos de uso equivalentes de `identity`, `conversations`, `integrations/meta`, `automation`, `billing` y `ai`.
+- Revisar los commits explícitos de OAuth y workers bajo la política de unidad de trabajo.
 - Sustituir métricas, tracing y exportaciones locales por backends compartidos.
-- Completar la separación por capacidades y agregar NFR/ADR operativos.
+- Completar integración real, E2E, CD, observabilidad y pruebas de carga.
 
 
 La arquitectura es viable como **monolito modular en etapa temprana**, y no justifica una migración inmediata a microservicios. No debe presentarse todavía como Clean Architecture aplicada: sus dependencias y límites son parcialmente convencionales y varias capas cruzan responsabilidades. Las prioridades son aislamiento/telemetría tenant, estado compartido para escala, unidad de trabajo consistente y extracción gradual de la lógica fuera de los routers.

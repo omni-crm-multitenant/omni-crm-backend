@@ -1,0 +1,9 @@
+from __future__ import annotations
+
+from typing import Protocol
+
+
+class CredentialStore(Protocol):
+    async def put(self, secret: str) -> str: ...
+    async def get(self, reference: str) -> str: ...
+    async def delete(self, reference: str) -> None: ...

@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.identity import ChannelAsset
-from app.services.credentials import CredentialStore
-
-if TYPE_CHECKING:
-    from app.services.meta_oauth import MetaAssetCandidate
+from app.domain.credentials import CredentialStore
 
 
 async def upsert_meta_assets(
@@ -18,7 +15,7 @@ async def upsert_meta_assets(
     *,
     tenant_id: UUID,
     meta_app_id: str,
-    candidates: list[MetaAssetCandidate],
+    candidates: list[Any],
     credential_store: CredentialStore,
 ) -> list[ChannelAsset]:
     """Persist only assets returned by Meta; keep provider tokens outside the database."""

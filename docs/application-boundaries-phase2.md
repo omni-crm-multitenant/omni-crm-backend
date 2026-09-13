@@ -5,7 +5,7 @@ Rama: `fix/architecture-corrections`
 
 ## Alcance
 
-Se extrajeron los casos de uso de creación, listado y actualización de contactos desde `app/api/v1/contacts.py` hacia `app/application/contacts.py`.
+Se extrajeron los casos de uso de creación, listado, actualización, consentimiento, revocación de consentimiento, borrado lógico y exportación desde `app/api/v1/contacts.py` hacia `app/application/contacts.py`.
 
 El módulo de aplicación posee:
 

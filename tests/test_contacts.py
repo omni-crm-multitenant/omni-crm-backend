@@ -7,7 +7,12 @@ from app.core.tenant_context import TenantContext
 from app.db.base import Base
 from app.models.crm import Contact, CustomFieldDefinition
 from app.models.identity import Tenant
-from app.repositories.contacts import ContactNotFound, create_contact, update_contact
+from app.application.contacts import (
+    CreateContactCommand,
+    UpdateContactCommand,
+    create_contact,
+    update_contact,
+)
 from app.services.custom_fields import CustomFieldValidationError
 
 
@@ -16,7 +21,7 @@ def tenant_context(tenant_id):
 
 
 @pytest.mark.asyncio
-async def test_contact_repository_validates_custom_fields_and_scopes_tenant() -> None:
+async def test_contact_use_cases_validate_custom_fields_and_scope_tenant() -> None:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
@@ -33,19 +38,55 @@ async def test_contact_repository_validates_custom_fields_and_scopes_tenant() ->
         await session.flush()
         contact = await create_contact(
             session,
-            tenant_context(first.id),
-            name=" Lead ",
-            email=" LEAD@EXAMPLE.COM ",
-            phone="+573001112233",
-            tags=["meta"],
-            custom_fields={"segment": "vip"},
+            context=tenant_context(first.id),
+            command=CreateContactCommand(
+                name=" Lead ",
+                email=" LEAD@EXAMPLE.COM ",
+                phone="+573001112233",
+                tags=["meta"],
+                custom_fields={"segment": "vip"},
+            ),
         )
         assert contact.tenant_id == first.id
         assert contact.email == "lead@example.com"
         with pytest.raises(CustomFieldValidationError, match="unknown_field"):
-            await update_contact(session, tenant_context(first.id), contact.id, custom_fields={"private": "leak"})
-        with pytest.raises(ContactNotFound):
-            await update_contact(session, tenant_context(second.id), contact.id, name="Cross tenant")
+            await update_contact(
+                session,
+                context=tenant_context(first.id),
+                contact=contact,
+                command=UpdateContactCommand({"custom_fields": {"private": "leak"}}),
+            )
+        with pytest.raises(LookupError):
+            await update_contact(
+                session,
+                context=tenant_context(second.id),
+                contact=contact,
+                command=UpdateContactCommand({"name": "Cross tenant"}),
+            )
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_contact_use_case_changes_rollback_with_outer_unit_of_work() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    tenant_id = uuid4()
+    with pytest.raises(RuntimeError, match="composition failure"):
+        async with factory() as session:
+            async with session.begin():
+                tenant = Tenant(id=tenant_id, name="Rollback", slug="contact-rollback")
+                session.add(tenant)
+                await session.flush()
+                await create_contact(
+                    session,
+                    context=tenant_context(tenant_id),
+                    command=CreateContactCommand(name="Transient"),
+                )
+                raise RuntimeError("composition failure")
+    async with factory() as session:
+        assert await session.get(Tenant, tenant_id) is None
     await engine.dispose()
 
 

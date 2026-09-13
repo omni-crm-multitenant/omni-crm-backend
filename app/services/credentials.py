@@ -2,13 +2,8 @@ from __future__ import annotations
 
 import secrets
 from functools import lru_cache
-from typing import Protocol
 
-
-class CredentialStore(Protocol):
-    async def put(self, secret: str) -> str: ...
-    async def get(self, reference: str) -> str: ...
-    async def delete(self, reference: str) -> None: ...
+from app.domain.credentials import CredentialStore
 
 
 class CredentialNotFound(LookupError):
@@ -38,3 +33,6 @@ class InMemoryCredentialStore:
 def get_credential_store() -> CredentialStore:
     """Return local credential adapter until durable secret storage is configured."""
     return InMemoryCredentialStore()
+
+
+__all__ = ["CredentialNotFound", "CredentialStore", "InMemoryCredentialStore", "get_credential_store"]
