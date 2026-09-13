@@ -11,8 +11,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && python -m pip install --upgrade --no-cache-dir pip \
     && python -m pip uninstall --yes msgpack setuptools \
+    && rm -rf /usr/local/lib/python3.13/site-packages/msgpack* /usr/local/lib/python3.13/site-packages/setuptools* \
     && python -m pip install --no-cache-dir msgpack==1.2.1 setuptools==83.0.0 \
-    && python -m pip install --upgrade --no-cache-dir --requirement requirements.lock
+    && python -m pip install --upgrade --no-cache-dir --requirement requirements.lock \
+    && python -c "import importlib.metadata as m; assert m.version('msgpack') == '1.2.1'; assert m.version('setuptools') == '83.0.0'"
 COPY . .
 RUN chown -R omni:omni /app
 USER omni

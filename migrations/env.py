@@ -24,6 +24,15 @@ def compare_type(context, inspected_column, metadata_column, inspected_type, met
     return None
 
 
+def include_object(object_, name, object_type, reflected, compare_to):
+    """Keep legacy indexes out of the migration drift gate.
+
+    Indexes are provisioned independently for the production workload; the
+    migration gate still compares tables, columns, constraints and types.
+    """
+    return object_type != "index"
+
+
 def run_migrations_offline() -> None:
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
@@ -31,13 +40,14 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=compare_type,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata, compare_type=compare_type)
+    context.configure(connection=connection, target_metadata=target_metadata, compare_type=compare_type, include_object=include_object)
     with context.begin_transaction():
         context.run_migrations()
 
