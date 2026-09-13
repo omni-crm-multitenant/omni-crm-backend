@@ -62,6 +62,12 @@ class WebhookEvent(Base):
             ondelete="RESTRICT",
             name="fk_webhook_events_tenant_asset",
         ),
+        ForeignKeyConstraint(
+            ["tenant_id", "routing_asset_id"],
+            ["channel_assets.tenant_id", "channel_assets.id"],
+            ondelete="RESTRICT",
+            name="fk_webhook_events_routing_asset",
+        ),
         Index("ix_webhook_events_pending", "status", "next_attempt_at"),
     )
 

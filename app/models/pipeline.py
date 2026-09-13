@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKeyConstraint, Index, Integer, String, UniqueConstraint, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKeyConstraint, Index, Integer, String, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -12,6 +13,7 @@ class Pipeline(Base):
     __tablename__ = "pipelines"
     __table_args__ = (
         UniqueConstraint("tenant_id", "id", name="uq_pipelines_tenant_identity"),
+        ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE", name="fk_pipelines_tenant_id_tenants"),
         Index("ix_pipelines_tenant_default", "tenant_id", "is_default"),
     )
 
@@ -19,6 +21,7 @@ class Pipeline(Base):
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class PipelineStage(Base):
