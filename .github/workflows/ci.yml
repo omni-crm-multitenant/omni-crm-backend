@@ -173,6 +173,7 @@ jobs:
         with:
           context: .
           load: true
+          no-cache: true
           tags: omni-backend:ci
       - uses: aquasecurity/trivy-action@v0.36.0
         continue-on-error: true
