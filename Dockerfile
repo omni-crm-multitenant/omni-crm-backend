@@ -6,7 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 RUN addgroup --system omni && adduser --system --ingroup omni omni
 COPY requirements.lock .
-RUN python -m pip install --upgrade --no-cache-dir pip \
+RUN apt-get update \
+    && apt-get upgrade --yes \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip install --upgrade --no-cache-dir pip \
     && python -m pip install --upgrade --force-reinstall --no-cache-dir --requirement requirements.lock \
     && python -m pip check
 COPY . .

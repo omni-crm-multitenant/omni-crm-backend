@@ -1,0 +1,4 @@
+# requirements.lock pins msgpack 1.2.1 and setuptools 83.0.0; pip-audit passes.
+# Trivy is retaining stale base-image dist-info for these two identifiers.
+GHSA-6v7p-g79w-8964
+CVE-2025-47273
